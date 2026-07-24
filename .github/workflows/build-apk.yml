@@ -18,25 +18,27 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install Flet CLI
+      - name: Install Flet
         run: |
           python -m pip install --upgrade pip
-          pip install flet
+          pip install flet==0.26.0
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          pip install jdatetime
 
-      - name: Accept Android licenses
+      - name: List files
         run: |
-          yes | sdkmanager --licenses || true
+          ls -la
+          echo "Current directory: $(pwd)"
 
       - name: Build APK
         run: |
-          flet build apk --module-name flet_app
+          flet build apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
+        if: success()
         with:
           name: Doosti-App-APK
           path: build/apk/*.apk
