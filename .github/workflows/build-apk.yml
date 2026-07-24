@@ -27,14 +27,9 @@ jobs:
         run: |
           pip install jdatetime
 
-      - name: List files (debug)
-        run: |
-          ls -la
-          pwd
-
       - name: Build APK
         run: |
-          flet build apk --module-name main
+          flet build apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
