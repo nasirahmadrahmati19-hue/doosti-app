@@ -13,37 +13,50 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
       
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.7'
+          channel: 'stable'
+          cache: true
       
-      - name: Accept Android licenses
-        run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           pip install --upgrade pip
           pip install flet jdatetime
+      
+      - name: Verify Flutter installation
+        run: |
+          flutter --version
+          flutter doctor
       
       - name: Build APK
         run: |
           flet build apk
       
+      - name: List build output
+        if: always()
+        run: |
+          ls -la build/ || echo "No build directory"
+          ls -la build/apk/ || echo "No apk directory"
+          find build -name "*.apk" || echo "No APK found"
+      
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: doosti-apk
-          path: build/apk/*.apk
+          path: |
+            build/apk/**/*.apk
+            build/apk/*.apk
           if-no-files-found: error
