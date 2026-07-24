@@ -1,0 +1,22 @@
+name: doosti-app
+product: Doosti Tailoring
+company: Doosti
+
+sources:
+  - flet_app.py
+
+assets:
+  - assets
+
+app:
+  short_description: "خیاطی دوستی"
+  long_description: "سیستم مدیریت سفارشات خیاطی"
+  
+  android:
+    min_sdk_version: 21
+    target_sdk_version: 33
+    compile_sdk_version: 33
+    permissions:
+      - android.permission.INTERNET
+      - android.permission.WRITE_EXTERNAL_STORAGE
+      - android.permission.READ_EXTERNAL_STORAGE
