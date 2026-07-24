@@ -27,18 +27,13 @@ jobs:
         run: |
           pip install jdatetime
 
-      - name: List files
-        run: |
-          ls -la
-          echo "Current directory: $(pwd)"
-
       - name: Build APK
         run: |
           flet build apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
-        if: success()
         with:
           name: Doosti-App-APK
-          path: build/apk/*.apk
+          path: build/apk/**/*.apk
+          if-no-files-found: warn
