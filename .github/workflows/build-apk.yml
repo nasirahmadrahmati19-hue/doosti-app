@@ -1,39 +1,34 @@
-name: Build Flet APK
+name: Build APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
-  build-apk:
+  build:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-
+          python-version: '3.12'
+      
       - name: Install Flet
         run: |
-          python -m pip install --upgrade pip
-          pip install flet==0.26.0
-
-      - name: Install dependencies
-        run: |
-          pip install jdatetime
-
+          pip install --upgrade pip
+          pip install flet jdatetime
+      
       - name: Build APK
         run: |
-          flet build apk
-
+          flet build apk --project doosti-app
+      
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Doosti-App-APK
+          name: doosti-apk
           path: build/apk/**/*.apk
-          if-no-files-found: warn
+          if-no-files-found: error
