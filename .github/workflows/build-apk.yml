@@ -18,6 +18,20 @@ jobs:
         with:
           python-version: '3.12'
       
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      
+      - name: Accept Android licenses
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+      
       - name: Install dependencies
         run: |
           pip install --upgrade pip
@@ -25,7 +39,7 @@ jobs:
       
       - name: Build APK
         run: |
-          flet build apk --output build/apk
+          flet build apk
       
       - name: Upload APK
         uses: actions/upload-artifact@v4
