@@ -1,0 +1,21 @@
+[project]
+name = "doosti-app"
+version = "1.0.0"
+description = "اپلیکیشن مدیریت خیاطی دوستی"
+requires-python = ">=3.10"
+dependencies = [
+    "flet>=0.25.0",
+    "jdatetime>=5.0.0",
+]
+
+[tool.flet]
+product = "Doosti Tailoring"
+company = "Doosti"
+org = "com.doosti"
+
+[tool.flet.app]
+path = "."
+
+[tool.flet.android]
+app_name = "خیاطی دوستی"
+package_name = "com.doosti.tailoring"
