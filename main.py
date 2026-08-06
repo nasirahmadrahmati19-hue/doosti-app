@@ -1,11 +1,8 @@
 import flet as ft
 import sqlite3
 import jdatetime
-import os
 
-# ============================================
-# رنگ‌های سفارشی
-# ============================================
+# تنظیمات ظاهری - رنگ‌های دقیق مطابق کد اصلی
 COLORS = {
     "primary": "#1a2332",
     "secondary": "#2c3e50",
@@ -20,9 +17,11 @@ COLORS = {
     "selected_row": "#3d566e"
 }
 
-# ============================================
-# توابع کمکی
-# ============================================
+DB_FILE = 'doosti.db'
+
+def get_db():
+    return sqlite3.connect(DB_FILE, check_same_thread=False)
+
 def fmt(n):
     try:
         return f"{float(n):,.0f}"
@@ -41,9 +40,21 @@ def safe_float(v):
     except:
         return None
 
-# ============================================
-# کلاس اصلی برنامه
-# ============================================
+def make_field(label_text, hint=""):
+    return ft.TextField(
+        label=label_text,
+        hint_text=hint if hint else label_text,
+        bgcolor=COLORS["input_bg"],
+        color=COLORS["text"],
+        text_align=ft.TextAlign.RIGHT,
+        border_color=COLORS["secondary"],
+        text_size=14,
+        label_style=ft.TextStyle(color=COLORS["text"], weight=ft.FontWeight.BOLD, size=14),
+        height=40,
+        border_radius=10,
+    )
+
+
 class DoostiTailoringApp:
     def __init__(self, page: ft.Page):
         self.page = page
@@ -53,8 +64,10 @@ class DoostiTailoringApp:
         self.page.padding = 0
         self.page.rtl = True
         
+        # فونت فارسی Vazirmatn
         self.page.fonts = {
             "Vazirmatn": "https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Regular.ttf",
+            "Vazirmatn-Bold": "https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/fonts/webfonts/Vazirmatn-Bold.ttf",
         }
         self.page.theme = ft.Theme(font_family="Vazirmatn")
         self.font_family = "Vazirmatn"
@@ -64,19 +77,15 @@ class DoostiTailoringApp:
         self.selected_order_row = None
         self.selected_expense_row = None
         
-        self.all_entries = []
-        self.info_entries = {}
-        self.measure_entries = {}
-        
         self.create_database()
         self.migrate_database()
         self.create_modern_ui()
     
     # ============================================
-    # دیتابیس
+    # دیتابیس - دقیقاً مطابق کد اصلی
     # ============================================
     def create_database(self):
-        conn = sqlite3.connect('doosti.db')
+        conn = get_db()
         cursor = conn.cursor()
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS orders (
@@ -87,8 +96,14 @@ class DoostiTailoringApp:
                 clothing_code INTEGER UNIQUE,
                 clothing_type TEXT NOT NULL,
                 price REAL NOT NULL,
-                height REAL, sleeve REAL, shoulder REAL, collar REAL,
-                chest REAL, skirt REAL, pants_length REAL, leg REAL,
+                height REAL,
+                sleeve REAL,
+                shoulder REAL,
+                collar REAL,
+                chest REAL,
+                skirt REAL,
+                pants_length REAL,
+                leg REAL,
                 order_date TEXT,
                 status TEXT DEFAULT 'در حال دوخت'
             )
@@ -105,7 +120,7 @@ class DoostiTailoringApp:
         conn.close()
     
     def migrate_database(self):
-        conn = sqlite3.connect('doosti.db')
+        conn = get_db()
         cursor = conn.cursor()
         cursor.execute("PRAGMA table_info(orders)")
         columns = [row[1] for row in cursor.fetchall()]
@@ -115,7 +130,7 @@ class DoostiTailoringApp:
         conn.close()
     
     def check_duplicate_code(self, code, exclude_id=None):
-        conn = sqlite3.connect('doosti.db')
+        conn = get_db()
         cursor = conn.cursor()
         if exclude_id:
             cursor.execute('SELECT id FROM orders WHERE clothing_code = ? AND id != ?', (code, exclude_id))
@@ -126,52 +141,56 @@ class DoostiTailoringApp:
         return result is not None
     
     # ============================================
-    # UI اصلی
+    # ساخت UI - دقیقاً مطابق کد اصلی
     # ============================================
     def create_modern_ui(self):
-        self.content = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
         self.create_header()
         self.create_navigation()
-        self.page.add(ft.Column([self.header, self.nav_bar, self.content], expand=True, spacing=0))
+        self.content = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+        self.page.add(ft.Column([
+            self.header,
+            self.nav_bar,
+            self.content
+        ], expand=True, spacing=0))
         self.show_tab("new_order")
     
     def create_header(self):
+        """ایجاد هدر مدرن - RTL با تاریخ شمسی - مطابق کد اصلی"""
         self.header = ft.Container(
-            content=ft.Row(
-                [
-                    ft.Column(
-                        [
-                            ft.Text("خیاطی دوستی  🧵", size=28, weight=ft.FontWeight.BOLD, color=COLORS["accent"]),
-                            ft.Text("سیستم مدیریت سفارشات", size=14, color=COLORS["text_muted"]),
-                        ],
-                        horizontal_alignment=ft.CrossAxisAlignment.END,
-                    ),
-                    ft.Container(
-                        ft.Text(f"📅  {today_shamsi()}", size=14, color=COLORS["text"]),
-                        bgcolor=COLORS["secondary"],
-                        padding=10,
-                        border_radius=10,
-                    ),
-                ],
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            ),
+            content=ft.Row([
+                ft.Column([
+                    ft.Text("خیاطی دوستی  🧵", 
+                           size=28, weight=ft.FontWeight.BOLD, color=COLORS["accent"],
+                           font_family="Vazirmatn-Bold"),
+                    ft.Text("سیستم مدیریت سفارشات", 
+                           size=14, color=COLORS["text_muted"],
+                           font_family="Vazirmatn"),
+                ], horizontal_alignment=ft.CrossAxisAlignment.END),
+                ft.Container(
+                    ft.Text(f"📅  {today_shamsi()}", 
+                           size=14, weight=ft.FontWeight.BOLD, color=COLORS["text"],
+                           font_family="Vazirmatn"),
+                    bgcolor=COLORS["secondary"],
+                    padding=10,
+                    border_radius=10,
+                ),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN, vertical_alignment=ft.CrossAxisAlignment.CENTER),
             bgcolor=COLORS["secondary"],
-            padding=20,
+               padding=20,
             height=80,
         )
     
     def create_navigation(self):
+        """ایجاد منوی ناوبری مدرن - RTL - مطابق کد اصلی"""
         tabs = [
-            ("new_order", "ثبت سفارش جدید  📝"),
+            ("new_order", "ثبت سفارش  📝"),
             ("customers", "مشتریان  👥"),
-            ("expenses", "مصارف دوکان  💰"),
-            ("report", "گزارش مالی  📊")
+            ("expenses", "مصارف  💰"),
+            ("report", "گزارش  📊")
         ]
         
         self.nav_buttons = {}
-        buttons_row = []
-        
+        buttons = []
         for tab_id, text in tabs:
             btn = ft.ElevatedButton(
                 text,
@@ -180,16 +199,24 @@ class DoostiTailoringApp:
                 color=COLORS["text"],
                 height=45,
                 expand=True,
+                style=ft.ButtonStyle(
+                    shape=ft.RoundedRectangleBorder(radius=12),
+                    text_style=ft.TextStyle(weight=ft.FontWeight.BOLD, size=14)
+                ),
             )
+            buttons.append(btn)
             self.nav_buttons[tab_id] = btn
-            buttons_row.append(btn)
         
         self.nav_bar = ft.Container(
-            content=ft.Row(buttons_row, spacing=10),
+            content=ft.Row(buttons, spacing=8),
             padding=10,
         )
     
     def show_tab(self, tab_id):
+        """نمایش تب انتخاب شده - تغییر رنگ دکمه مطابق کد اصلی"""
+        self.content.controls.clear()
+        
+        # تغییر رنگ دکمه‌ها مطابق کد اصلی
         for tid, btn in self.nav_buttons.items():
             if tid == tab_id:
                 btn.bgcolor = COLORS["accent"]
@@ -197,8 +224,6 @@ class DoostiTailoringApp:
             else:
                 btn.bgcolor = COLORS["card_bg"]
                 btn.color = COLORS["text"]
-        
-        self.content.controls.clear()
         
         if tab_id == "new_order":
             self.create_new_order_tab()
@@ -212,66 +237,63 @@ class DoostiTailoringApp:
         self.page.update()
     
     def create_section_title(self, text, icon=""):
+        """ایجاد عنوان بخش مدرن - RTL - مطابق کد اصلی"""
         display = f"{text}  {icon}" if icon else text
         return ft.Container(
-            content=ft.Row(
-                [
-                    ft.Text(display, size=20, weight=ft.FontWeight.BOLD, color=COLORS["accent"]),
-                    ft.Container(expand=True, height=2, bgcolor=COLORS["accent"]),
-                ],
-                spacing=15,
-            ),
+            content=ft.Row([
+                ft.Text(display, size=20, weight=ft.FontWeight.BOLD, color=COLORS["accent"],
+                       font_family="Vazirmatn-Bold"),
+                ft.Container(expand=True, height=2, bgcolor=COLORS["accent"]),
+            ], spacing=15),
             padding=15,
         )
     
     # ============================================
-    # تب ثبت سفارش جدید
+    # تب ۱: ثبت سفارش جدید - دو ستون عمودی
     # ============================================
     def create_new_order_tab(self):
+        """ایجاد تب ثبت سفارش - دو ستون عمودی مطابق کد اصلی"""
+        
+        # عنوان - تغییر می‌کند در حالت ویرایش
         title_text = "ثبت سفارش جدید  📝"
+        btn_text = "ذخیره سفارش  💾"
+        
         if self.editing_order_id:
-            title_text = f"ویرایش سفارش شماره {self.editing_order_id}  ✏️"
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute('SELECT clothing_code FROM orders WHERE id=?', (self.editing_order_id,))
+            row = cur.fetchone()
+            conn.close()
+            if row and row[0]:
+                title_text = f"ویرایش سفارش شماره {row[0]}  ✏️"
+            else:
+                title_text = f"ویرایش سفارش شماره {self.editing_order_id}  ✏️"
+            btn_text = "بروزرسانی سفارش  💾"
+        
+        self.order_title_label = ft.Text(
+            title_text, size=20, weight=ft.FontWeight.BOLD, color=COLORS["accent"],
+            font_family="Vazirmatn-Bold"
+        )
         
         title_container = ft.Container(
-            content=ft.Row(
-                [
-                    ft.Text(title_text, size=20, weight=ft.FontWeight.BOLD, color=COLORS["accent"]),
-                    ft.Container(expand=True, height=2, bgcolor=COLORS["accent"]),
-                ],
-                spacing=15,
-            ),
+            content=ft.Row([
+                self.order_title_label,
+                ft.Container(expand=True, height=2, bgcolor=COLORS["accent"]),
+            ], spacing=15),
             padding=15,
         )
         self.content.controls.append(title_container)
         
-        # ساخت فیلدها
-        fields_info = [
-            ("اسم", "name"),
-            ("تخلص", "surname"),
-            ("شماره تلفون", "phone"),
-            ("کود لباس (عدد)", "clothing_code"),
-            ("مدل لباس", "clothing_type"),
-            ("قیمت لباس (افغانی)", "price")
-        ]
+        # ساخت فیلدها - مطابق کد اصلی
+        self.entry_name = make_field("اسم", "نام مشتری")
+        self.entry_surname = make_field("تخلص", "تخلص مشتری")
+        self.entry_phone = make_field("شماره تلفون", "شماره تلفون")
+        self.entry_clothing_code = make_field("کود لباس (عدد)", "کود منحصر به فرد")
+        self.entry_clothing_type = make_field("مدل لباس", "مدل لباس")
+        self.entry_price = make_field("قیمت لباس (افغانی)", "قیمت")
         
-        self.info_entries = {}
-        customer_fields = []
-        for label, key in fields_info:
-            lbl = ft.Text(label, size=15, weight=ft.FontWeight.BOLD, color=COLORS["text"])
-            entry = ft.TextField(
-                hint_text=label,  # ✅ اصلاح شد: hint_text به جای placeholder_text
-                text_size=14,
-                height=40,
-                border_radius=10,
-                bgcolor=COLORS["input_bg"],
-                color=COLORS["text"],
-                border_color=COLORS["secondary"],
-                text_align=ft.TextAlign.RIGHT,
-            )
-            self.info_entries[key] = entry
-            customer_fields.append(lbl)
-            customer_fields.append(entry)
-        
+        # اندازه‌ها - مطابق کد اصلی
+        self.measure_entries = {}
         measurements = [
             ("قد", "height"),
             ("آستین", "sleeve"),
@@ -282,90 +304,110 @@ class DoostiTailoringApp:
             ("قد تنبان", "pants_length"),
             ("پاچه", "leg")
         ]
-        
-        self.measure_entries = {}
-        measure_fields = []
         for label, key in measurements:
-            lbl = ft.Text(label, size=15, weight=ft.FontWeight.BOLD, color=COLORS["text"])
-            entry = ft.TextField(
-                hint_text="0",  # ✅ اصلاح شد
-                text_size=14,
-                height=40,
-                border_radius=10,
-                bgcolor=COLORS["input_bg"],
-                color=COLORS["text"],
-                border_color=COLORS["secondary"],
-                text_align=ft.TextAlign.RIGHT,
-            )
-            self.measure_entries[key] = entry
-            measure_fields.append(lbl)
-            measure_fields.append(entry)
+            self.measure_entries[key] = make_field(label, "0")
         
+        # بارگذاری مقادیر در حالت ویرایش
         if self.editing_order_id:
-            self._load_order_data()
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute('''SELECT customer_name, customer_surname, phone, clothing_code,
+                clothing_type, price, height, sleeve, shoulder, collar,
+                chest, skirt, pants_length, leg FROM orders WHERE id=?''', 
+                (self.editing_order_id,))
+            o = cur.fetchone()
+            conn.close()
+            if o:
+                self.entry_name.value = o[0] or ''
+                self.entry_surname.value = o[1] or ''
+                self.entry_phone.value = o[2] or ''
+                self.entry_clothing_code.value = str(o[3]) if o[3] else ''
+                self.entry_clothing_type.value = o[4] or ''
+                self.entry_price.value = str(o[5]) if o[5] else ''
+                self.measure_entries['height'].value = str(o[6]) if o[6] else ''
+                self.measure_entries['sleeve'].value = str(o[7]) if o[7] else ''
+                self.measure_entries['shoulder'].value = str(o[8]) if o[8] else ''
+                self.measure_entries['collar'].value = str(o[9]) if o[9] else ''
+                self.measure_entries['chest'].value = str(o[10]) if o[10] else ''
+                self.measure_entries['skirt'].value = str(o[11]) if o[11] else ''
+                self.measure_entries['pants_length'].value = str(o[12]) if o[12] else ''
+                self.measure_entries['leg'].value = str(o[13]) if o[13] else ''
         
+        # ============================================
+        # ستون سمت راست: اطلاعات مشتری (RTL - در راست قرار می‌گیرد)
+        # ============================================
         customer_card = ft.Container(
-            content=ft.Column(
-                [
-                    ft.Container(
-                        ft.Text("اطلاعات مشتری  👤", size=20, weight=ft.FontWeight.BOLD, color=COLORS["accent"]),
-                        bgcolor=COLORS["secondary"],
-                        padding=15,
-                        border_radius=15,
-                    ),
-                    ft.Container(
-                        ft.Column(customer_fields, spacing=10),
-                        padding=20,
-                    ),
-                ],
-                spacing=0,
-            ),
-            bgcolor=COLORS["card_bg"],
-            border_radius=15,
-            margin=5,
+            content=ft.Column([
+                ft.Container(
+                    ft.Text("اطلاعات مشتری  👤", size=18, weight=ft.FontWeight.BOLD, 
+                           color=COLORS["accent"], font_family="Vazirmatn-Bold"),
+                    bgcolor=COLORS["secondary"], padding=15, border_radius=15
+                ),
+                ft.Container(
+                    ft.Column([
+                        self.entry_name,
+                        self.entry_surname,
+                        self.entry_phone,
+                        self.entry_clothing_code,
+                        self.entry_clothing_type,
+                        self.entry_price,
+                    ], spacing=15),
+                    padding=20,
+                ),
+            ], spacing=0),
+            bgcolor=COLORS["card_bg"], border_radius=15,
         )
         
+        # ============================================
+        # ستون سمت چپ: اندازه‌ها (RTL - در چپ قرار می‌گیرد)
+        # ============================================
         measure_card = ft.Container(
-            content=ft.Column(
-                [
-                    ft.Container(
-                        ft.Text("اندازه‌ها (سانتی‌متر)  📏", size=20, weight=ft.FontWeight.BOLD, color=COLORS["accent"]),
-                        bgcolor=COLORS["secondary"],
-                        padding=15,
-                        border_radius=15,
-                    ),
-                    ft.Container(
-                        ft.Column(measure_fields, spacing=10),
-                        padding=20,
-                    ),
-                ],
-                spacing=0,
-            ),
-            bgcolor=COLORS["card_bg"],
-            border_radius=15,
-            margin=5,
+            content=ft.Column([
+                ft.Container(
+                    ft.Text("اندازه‌ها (سانتی‌متر)  📏", size=18, weight=ft.FontWeight.BOLD, 
+                           color=COLORS["accent"], font_family="Vazirmatn-Bold"),
+                    bgcolor=COLORS["secondary"], padding=15, border_radius=15
+                ),
+                ft.Container(
+                    ft.Column([
+                        self.measure_entries['height'],
+                        self.measure_entries['sleeve'],
+                        self.measure_entries['shoulder'],
+                        self.measure_entries['collar'],
+                        self.measure_entries['chest'],
+                        self.measure_entries['skirt'],
+                        self.measure_entries['pants_length'],
+                        self.measure_entries['leg'],
+                    ], spacing=15),
+                    padding=20,
+                ),
+            ], spacing=0),
+            bgcolor=COLORS["card_bg"], border_radius=15,
         )
         
-        two_columns = ft.ResponsiveRow(
-            [
-                ft.Container(customer_card, col={"sm": 12, "md": 6, "lg": 6}),
-                ft.Container(measure_card, col={"sm": 12, "md": 6, "lg": 6}),
-            ],
-            spacing=10,
-            run_spacing=10,
-        )
+        # دو ستون عمودی - مطابق کد اصلی
+        # در RTL: ستون اول سمت راست، ستون دوم سمت چپ
+        two_columns = ft.ResponsiveRow([
+            ft.Container(customer_card, col={"sm": 12, "md": 6, "lg": 6}),
+            ft.Container(measure_card, col={"sm": 12, "md": 6, "lg": 6}),
+        ], spacing=10, run_spacing=10)
         
-        btn_save_text = "ذخیره سفارش  💾"
-        if self.editing_order_id:
-            btn_save_text = "بروزرسانی سفارش  💾"
+        self.content.controls.append(two_columns)
         
+        # ============================================
+        # دکمه‌ها - مطابق کد اصلی
+        # ============================================
         self.btn_save = ft.ElevatedButton(
-            btn_save_text,
+            btn_text,
             on_click=lambda e: self.save_order(),
             bgcolor=COLORS["accent"],
             color=COLORS["primary"],
             height=50,
             expand=True,
+            style=ft.ButtonStyle(
+                shape=ft.RoundedRectangleBorder(radius=12),
+                text_style=ft.TextStyle(weight=ft.FontWeight.BOLD, size=16)
+            ),
         )
         
         self.btn_cancel_edit = ft.ElevatedButton(
@@ -376,64 +418,45 @@ class DoostiTailoringApp:
             height=50,
             expand=True,
             visible=self.editing_order_id is not None,
+            style=ft.ButtonStyle(
+                shape=ft.RoundedRectangleBorder(radius=12),
+                text_style=ft.TextStyle(weight=ft.FontWeight.BOLD, size=14)
+            ),
         )
         
-        btn_frame = ft.Container(
-            content=ft.Row([self.btn_cancel_edit, self.btn_save], spacing=10),
-            padding=10,
-        )
+        btn_frame = ft.Row([
+            self.btn_cancel_edit,
+            self.btn_save,
+        ], spacing=10)
         
-        self.content.controls.extend([two_columns, btn_frame])
-    
-    def _load_order_data(self):
-        conn = sqlite3.connect('doosti.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT id, customer_name, customer_surname, phone, clothing_code,
-                   clothing_type, price, height, sleeve, shoulder, collar,
-                   chest, skirt, pants_length, leg
-            FROM orders WHERE id = ?
-        ''', (self.editing_order_id,))
-        order = cursor.fetchone()
-        conn.close()
-        
-        if order:
-            self.info_entries["name"].value = order[1] or ''
-            self.info_entries["surname"].value = order[2] or ''
-            self.info_entries["phone"].value = order[3] or ''
-            self.info_entries["clothing_code"].value = str(order[4]) if order[4] else ''
-            self.info_entries["clothing_type"].value = order[5] or ''
-            self.info_entries["price"].value = str(order[6]) if order[6] else ''
-            
-            measure_keys = ['height', 'sleeve', 'shoulder', 'collar', 'chest', 'skirt', 'pants_length', 'leg']
-            for i, key in enumerate(measure_keys):
-                if order[7 + i] is not None:
-                    self.measure_entries[key].value = str(order[7 + i])
+        self.content.controls.append(ft.Container(btn_frame, padding=10))
     
     def save_order(self):
-        clothing_code = (self.info_entries["clothing_code"].value or "").strip()
-        name = (self.info_entries["name"].value or "").strip()
-        surname = (self.info_entries["surname"].value or "").strip()
-        phone = (self.info_entries["phone"].value or "").strip()
-        clothing_type = (self.info_entries["clothing_type"].value or "").strip()
-        price = (self.info_entries["price"].value or "").strip()
+        """ذخیره سفارش - دقیقاً مطابق کد اصلی"""
+        clothing_code = (self.entry_clothing_code.value or "").strip()
+        name = (self.entry_name.value or "").strip()
+        surname = (self.entry_surname.value or "").strip()
+        phone = (self.entry_phone.value or "").strip()
+        clothing_type = (self.entry_clothing_type.value or "").strip()
+        price = (self.entry_price.value or "").strip()
         
-        if not clothing_code or not name or not surname or not phone or not price:
-            self._show_error("لطفاً تمام فیلدهای ضروری را پر کنید!")
+        if not all([clothing_code, name, surname, phone, price]):
+            self._show_dialog("خطا", "لطفاً تمام فیلدهای ضروری را پر کنید!")
             return
         
         try:
             clothing_code_int = int(clothing_code)
             price_f = float(price)
         except ValueError:
-            self._show_error("کود لباس و قیمت باید عدد باشند!")
+            self._show_dialog("خطا", "کود لباس و قیمت باید عدد باشند!")
             return
         
         if not clothing_type:
             clothing_type = "نامشخص"
         
         if self.check_duplicate_code(clothing_code_int, self.editing_order_id):
-            self._show_error(f"کود لباس {clothing_code_int} قبلاً ثبت شده است!")
+            self._show_dialog("خطا", 
+                f"کود لباس {clothing_code_int} قبلاً ثبت شده است!\nلطفاً یک کود منحصر به فرد وارد کنید.")
             return
         
         measurements = {}
@@ -441,7 +464,7 @@ class DoostiTailoringApp:
             value = (entry.value or "").strip()
             measurements[key] = float(value) if value else None
         
-        conn = sqlite3.connect('doosti.db')
+        conn = get_db()
         cursor = conn.cursor()
         order_date = now_shamsi()
         
@@ -461,7 +484,7 @@ class DoostiTailoringApp:
                       self.editing_order_id))
                 conn.commit()
                 conn.close()
-                self._show_success("سفارش با موفقیت بروزرسانی شد!")
+                self._show_dialog("موفقیت", "سفارش با موفقیت بروزرسانی شد!")
                 self.cancel_edit()
             else:
                 cursor.execute('''
@@ -472,50 +495,45 @@ class DoostiTailoringApp:
                 ''', (clothing_code_int, name, surname, phone, clothing_type, price_f,
                       measurements['height'], measurements['sleeve'], measurements['shoulder'],
                       measurements['collar'], measurements['chest'], measurements['skirt'],
-                      measurements['pants_length'], measurements['leg'], order_date))
+                      measurements['pants_length'], measurements['leg'],
+                      order_date))
                 conn.commit()
                 conn.close()
-                self._show_success("سفارش با موفقیت ذخیره شد!")
+                self._show_dialog("موفقیت", "سفارش با موفقیت ذخیره شد!")
                 self.clear_order_form()
         except Exception as e:
             conn.close()
-            self._show_error(f"خطا: {e}")
+            self._show_dialog("خطا", f"خطا در ذخیره: {e}")
     
     def clear_order_form(self):
-        for entry in self.info_entries.values():
-            entry.value = ""
+        """پاک کردن فرم سفارش - مطابق کد اصلی"""
+        self.entry_clothing_code.value = ""
+        self.entry_name.value = ""
+        self.entry_surname.value = ""
+        self.entry_phone.value = ""
+        self.entry_clothing_type.value = ""
+        self.entry_price.value = ""
         for entry in self.measure_entries.values():
             entry.value = ""
+        self.page.update()
     
     def cancel_edit(self):
+        """لغو ویرایش - مطابق کد اصلی"""
         self.editing_order_id = None
         self.clear_order_form()
         self.show_tab("new_order")
     
     # ============================================
-    # تب مشتریان
+    # تب ۲: مشتریان - جدول با هدر طلایی
     # ============================================
     def create_customers_tab(self):
+        """ایجاد تب مشتریان - مطابق کد اصلی"""
         self.content.controls.append(self.create_section_title("لیست مشتریان", "👥"))
         
-        self.content.controls.append(
-            ft.Container(
-                ft.Text("💡 برای ویرایش یا حذف، روی هر سطر انگشت خود را نگه دارید", 
-                       size=12, color=COLORS["text_muted"], text_align=ft.TextAlign.CENTER),
-                padding=10,
-            )
-        )
-        
-        self.entry_search = ft.TextField(
-            hint_text="جستجو با اسم، تخلص، موبایل یا کود لباس...  🔍",  # ✅ اصلاح شد
-            text_size=14,
-            height=40,
-            border_radius=10,
-            bgcolor=COLORS["input_bg"],
-            color=COLORS["text"],
-            border_color=COLORS["secondary"],
-            text_align=ft.TextAlign.RIGHT,
-            expand=True,
+        # کارت جستجو - مطابق کد اصلی
+        self.entry_search = make_field(
+            "جستجو با اسم، تخلص، موبایل یا کود لباس...  🔍",
+            "جستجو..."
         )
         
         self.btn_search = ft.ElevatedButton(
@@ -524,7 +542,8 @@ class DoostiTailoringApp:
             bgcolor=COLORS["accent"],
             color=COLORS["primary"],
             height=40,
-            width=120,
+            width=100,
+            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)),
         )
         
         self.btn_refresh = ft.ElevatedButton(
@@ -533,53 +552,43 @@ class DoostiTailoringApp:
             bgcolor=COLORS["secondary"],
             color=COLORS["text"],
             height=40,
-            width=140,
+            width=130,
+            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)),
         )
         
         search_card = ft.Container(
-            content=ft.Row(
-                [self.btn_refresh, self.btn_search, self.entry_search],
-                spacing=10,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            ),
-            bgcolor=COLORS["card_bg"],
-            border_radius=15,
-            padding=20,
-            margin=5,
+            content=ft.Row([
+                self.btn_refresh,
+                self.btn_search,
+                ft.Container(self.entry_search, expand=True),
+            ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.END),
+            bgcolor=COLORS["card_bg"], border_radius=15, padding=20, margin=5,
         )
         self.content.controls.append(search_card)
         
-        headers = ["وضعیت", "تاریخ", "قیمت", "مدل", "کود", "موبایل", "تخلص", "اسم", "#"]
-        header_row = ft.Row(
-            [ft.Text(h, color=COLORS["accent"], weight=ft.FontWeight.BOLD, size=12, expand=True) for h in headers],
-            spacing=3,
-        )
+        # جدول - مطابق کد اصلی
+        headers = ["وضعیت", "تاریخ", "قیمت", "مدل لباس", "کود لباس", "موبایل", "تخلص", "اسم", "شماره"]
         
         table_header = ft.Container(
-            content=header_row,
-            bgcolor=COLORS["secondary"],
-            padding=15,
-            border_radius=15,
+            content=ft.Row([
+                ft.Text(h, color=COLORS["accent"], weight=ft.FontWeight.BOLD, expand=True, size=12)
+                for h in headers
+            ], spacing=2),
+            bgcolor=COLORS["secondary"], padding=15, border_radius=15,
         )
+        self.content.controls.append(table_header)
         
         self.table_content = ft.Column(spacing=5)
-        
-        table_card = ft.Container(
-            content=ft.Column([table_header, self.table_content], spacing=0),
-            bgcolor=COLORS["card_bg"],
-            border_radius=15,
-            padding=10,
-            margin=5,
-        )
-        self.content.controls.append(table_card)
+        self.content.controls.append(ft.Container(self.table_content, padding=10))
         
         self.load_customers()
     
     def load_customers(self):
+        """بارگذاری لیست مشتریان - مطابق کد اصلی"""
         self.table_content.controls.clear()
         self.selected_order_row = None
         
-        conn = sqlite3.connect('doosti.db')
+        conn = get_db()
         cursor = conn.cursor()
         cursor.execute('''
             SELECT id, customer_name, customer_surname, phone, clothing_code,
@@ -591,93 +600,108 @@ class DoostiTailoringApp:
         
         for idx, order in enumerate(orders):
             self.add_customer_row(order, idx + 1)
+        
         self.page.update()
     
     def add_customer_row(self, order, row_number):
+        """اضافه کردن ردیف مشتری - مطابق کد اصلی
+        در موبایل راست‌کلیک نداریم، پس دکمه‌های ویرایش/حذف اضافه می‌کنیم"""
+        
         values = [
             order[8] or "در حال دوخت",
             order[7] or "-",
-            f"{order[6]:,.0f}" if order[6] else "0",
+            fmt(order[6]),
             order[5] or "-",
             str(order[4]) if order[4] else "-",
             order[3] or "-",
             order[2] or "-",
             order[1] or "-",
-            str(row_number),
+            str(row_number)
         ]
         
         row = ft.Container(
-            content=ft.Row(
-                [ft.Text(v, color=COLORS["text"], size=12, expand=True) for v in values],
-                spacing=3,
-            ),
+            content=ft.Column([
+                ft.Row([
+                    ft.Text(v, color=COLORS["text"], expand=True, size=12)
+                    for v in values
+                ], spacing=2),
+                ft.Row([
+                    ft.ElevatedButton(
+                        "✏️ ویرایش",
+                        on_click=lambda e, oid=order[0]: self.edit_order(oid),
+                        bgcolor=COLORS["accent"], color=COLORS["primary"],
+                        height=32, width=110,
+                        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+                    ),
+                    ft.ElevatedButton(
+                        "🗑️ حذف",
+                        on_click=lambda e, oid=order[0]: self.confirm_delete_order(oid),
+                        bgcolor=COLORS["danger"], color=COLORS["text"],
+                        height=32, width=110,
+                        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+                    ),
+                ], spacing=10),
+            ], spacing=8),
             bgcolor=COLORS["input_bg"],
-            border_radius=10,
             padding=15,
-            ink=True,
-            on_long_press=lambda e, oid=order[0]: self._show_order_context_menu(oid),
-            on_click=lambda e, oid=order[0]: self._highlight_order_row(oid, e.control),
+            border_radius=10,
+            on_click=lambda e, oid=order[0]: self.select_order_row(oid),
         )
+        
+        # تغییر رنگ در حالت انتخاب
+        if self.selected_order_row == order[0]:
+            row.bgcolor = COLORS["selected_row"]
+        
         self.table_content.controls.append(row)
     
-    def _highlight_order_row(self, order_id, widget):
-        if self.selected_order_row == order_id:
-            return
-        for ctrl in self.table_content.controls:
-            ctrl.bgcolor = COLORS["input_bg"]
-        widget.bgcolor = COLORS["selected_row"]
+    def select_order_row(self, order_id):
+        """انتخاب یک ردیف سفارش - مطابق کد اصلی"""
         self.selected_order_row = order_id
-        self.page.update()
-    
-    def _show_order_context_menu(self, order_id):
-        self.selected_order_row = order_id
-        
-        def close_dlg(e):
-            dlg.open = False
-            self.page.update()
-        
-        def edit_click(e):
-            close_dlg(e)
-            self.edit_order(order_id)
-        
-        def delete_click(e):
-            close_dlg(e)
-            self.delete_order(order_id)
-        
-        dlg = ft.AlertDialog(
-            title=ft.Text(f"عملیات سفارش شماره {order_id}", size=18, weight=ft.FontWeight.BOLD, color=COLORS["accent"]),
-            content=ft.Column(
-                [
-                    ft.ElevatedButton("✏️  ویرایش سفارش", on_click=edit_click, bgcolor=COLORS["accent"], color=COLORS["primary"], height=50, expand=True),
-                    ft.ElevatedButton("🗑️  حذف سفارش", on_click=delete_click, bgcolor=COLORS["danger"], color=COLORS["text"], height=50, expand=True),
-                    ft.ElevatedButton("❌  انصراف", on_click=close_dlg, bgcolor=COLORS["secondary"], color=COLORS["text"], height=50, expand=True),
-                ],
-                spacing=10,
-                tight=True,
-            ),
-            actions_alignment=ft.MainAxisAlignment.CENTER,
-        )
-        self.page.overlay.append(dlg)
-        dlg.open = True
-        self.page.update()
+        self.load_customers()
     
     def edit_order(self, order_id):
-        self.editing_order_id = order_id
+        """ویرایش سفارش - مطابق کد اصلی"""
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, customer_name, customer_surname, phone, clothing_code,
+                   clothing_type, price, height, sleeve, shoulder, collar,
+                   chest, skirt, pants_length, leg
+            FROM orders WHERE id = ?
+        ''', (order_id,))
+        order = cursor.fetchone()
+        conn.close()
+        
+        if not order:
+            self._show_dialog("خطا", "سفارش پیدا نشد!")
+            return
+        
+        self.editing_order_id = order[0]
         self.show_tab("new_order")
     
-    def delete_order(self, order_id):
-        self._show_confirm("تأیید حذف", "آیا از حذف این سفارش اطمینان دارید؟", lambda: self._do_delete_order(order_id))
+    def confirm_delete_order(self, order_id):
+        """تأیید حذف سفارش - معادل messagebox.askyesno"""
+        self.selected_order_row = order_id
+        self._show_confirm_dialog(
+            "تأیید حذف",
+            "آیا از حذف این سفارش اطمینان دارید؟",
+            lambda: self.delete_order(order_id)
+        )
     
-    def _do_delete_order(self, order_id):
-        conn = sqlite3.connect('doosti.db')
+    def delete_order(self, order_id):
+        """حذف سفارش - مطابق کد اصلی"""
+        conn = get_db()
         cursor = conn.cursor()
         cursor.execute('DELETE FROM orders WHERE id = ?', (order_id,))
         conn.commit()
         conn.close()
-        self._show_success("سفارش حذف شد!")
+        
+        self._show_dialog("موفقیت", "سفارش حذف شد!")
+        self.selected_order_row = None
         self.load_customers()
     
     def search_customers(self):
+        """جستجو در مشتریان - مطابق کد اصلی"""
         search_text = (self.entry_search.value or "").strip()
         self.table_content.controls.clear()
         self.selected_order_row = None
@@ -686,68 +710,61 @@ class DoostiTailoringApp:
             self.load_customers()
             return
         
-        conn = sqlite3.connect('doosti.db')
+        conn = get_db()
         cursor = conn.cursor()
         cursor.execute('''
             SELECT id, customer_name, customer_surname, phone, clothing_code,
                    clothing_type, price, order_date, status
             FROM orders
-            WHERE customer_name LIKE ? OR customer_surname LIKE ? OR phone LIKE ?
-               OR CAST(clothing_code AS TEXT) LIKE ? OR clothing_type LIKE ?
+            WHERE customer_name LIKE ? 
+               OR customer_surname LIKE ? 
+               OR phone LIKE ?
+               OR CAST(clothing_code AS TEXT) LIKE ?
+               OR clothing_type LIKE ?
             ORDER BY id ASC
-        ''', (f'%{search_text}%',) * 5)
+        ''', (f'%{search_text}%', f'%{search_text}%', f'%{search_text}%', 
+              f'%{search_text}%', f'%{search_text}%'))
+        
         orders = cursor.fetchall()
         conn.close()
         
         for idx, order in enumerate(orders):
             self.add_customer_row(order, idx + 1)
+        
         self.page.update()
     
     # ============================================
-    # تب مصارف
+    # تب ۳: مصارف دوکان - مطابق کد اصلی
     # ============================================
     def create_expenses_tab(self):
+        """ایجاد تب مصارف - مطابق کد اصلی"""
         self.content.controls.append(self.create_section_title("مصارف دوکان", "💰"))
-        
-        self.content.controls.append(
-            ft.Container(
-                ft.Text("💡 برای ویرایش یا حذف، روی هر سطر انگشت خود را نگه دارید", 
-                       size=12, color=COLORS["text_muted"], text_align=ft.TextAlign.CENTER),
-                padding=10,
-            )
-        )
         
         title_text = "ثبت مصرف جدید  💰"
         btn_text = "ذخیره  💾"
+        
         if self.editing_expense_id:
             title_text = "ویرایش مصرف  ✏️"
             btn_text = "بروزرسانی  💾"
         
-        self.expense_title_label = ft.Text(title_text, size=16, weight=ft.FontWeight.BOLD, color=COLORS["text"])
-        
-        self.entry_expense_title = ft.TextField(
-            hint_text="عنوان مصرف (مثلاً: کرایه دوکان)",  # ✅ اصلاح شد
-            text_size=14,
-            height=40,
-            border_radius=10,
-            bgcolor=COLORS["input_bg"],
-            color=COLORS["text"],
-            border_color=COLORS["secondary"],
-            text_align=ft.TextAlign.RIGHT,
-            expand=True,
+        self.expense_title_label = ft.Text(
+            title_text, size=16, weight=ft.FontWeight.BOLD, color=COLORS["text"],
+            font_family="Vazirmatn-Bold"
         )
         
-        self.entry_expense_amount = ft.TextField(
-            hint_text="مبلغ (افغانی)",  # ✅ اصلاح شد
-            text_size=14,
-            height=40,
-            border_radius=10,
-            bgcolor=COLORS["input_bg"],
-            color=COLORS["text"],
-            border_color=COLORS["secondary"],
-            text_align=ft.TextAlign.RIGHT,
-            width=200,
-        )
+        self.entry_expense_title = make_field("عنوان مصرف", "مثلاً: کرایه دوکان")
+        self.entry_expense_amount = make_field("مبلغ (افغانی)", "مبلغ مصرف")
+        
+        # بارگذاری مقادیر در حالت ویرایش
+        if self.editing_expense_id:
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute('SELECT title, amount FROM expenses WHERE id=?', (self.editing_expense_id,))
+            e = cur.fetchone()
+            conn.close()
+            if e:
+                self.entry_expense_title.value = e[0] or ''
+                self.entry_expense_amount.value = str(e[1]) if e[1] else ''
         
         self.btn_save_expense = ft.ElevatedButton(
             btn_text,
@@ -756,6 +773,10 @@ class DoostiTailoringApp:
             color=COLORS["primary"],
             height=40,
             width=120,
+            style=ft.ButtonStyle(
+                shape=ft.RoundedRectangleBorder(radius=10),
+                text_style=ft.TextStyle(weight=ft.FontWeight.BOLD, size=14)
+            ),
         )
         
         self.btn_cancel_expense_edit = ft.ElevatedButton(
@@ -766,107 +787,108 @@ class DoostiTailoringApp:
             height=40,
             width=100,
             visible=self.editing_expense_id is not None,
+            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)),
         )
         
-        if self.editing_expense_id:
-            self._load_expense_data()
-        
-        form_content = ft.Container(
-            content=ft.Column(
-                [
-                    ft.Container(self.expense_title_label, bgcolor=COLORS["secondary"], padding=12, border_radius=15),
-                    ft.Container(
-                        content=ft.Row([self.btn_cancel_expense_edit, self.btn_save_expense, self.entry_expense_amount, self.entry_expense_title], spacing=10, vertical_alignment=ft.CrossAxisAlignment.END),
-                        padding=20,
-                    ),
-                ],
-                spacing=0,
-            ),
-            bgcolor=COLORS["card_bg"],
-            border_radius=15,
-            margin=5,
+        form_card = ft.Container(
+            content=ft.Column([
+                ft.Container(
+                    self.expense_title_label,
+                    bgcolor=COLORS["secondary"], padding=15, border_radius=15
+                ),
+                ft.Container(
+                    ft.Column([
+                        ft.Row([
+                            ft.Container(self.entry_expense_title, expand=True),
+                            ft.Container(self.entry_expense_amount, expand=True),
+                        ], spacing=15, vertical_alignment=ft.CrossAxisAlignment.END),
+                        ft.Row([
+                            self.btn_cancel_expense_edit,
+                            self.btn_save_expense,
+                        ], spacing=10),
+                    ], spacing=15),
+                    padding=20,
+                ),
+            ], spacing=0),
+            bgcolor=COLORS["card_bg"], border_radius=15, margin=5,
         )
-        self.content.controls.append(form_content)
+        self.content.controls.append(form_card)
         
+        # جدول مصارف - مطابق کد اصلی
         headers = ["تاریخ", "مبلغ", "عنوان", "شماره"]
-        header_row = ft.Row(
-            [ft.Text(h, color=COLORS["accent"], weight=ft.FontWeight.BOLD, size=13, expand=True) for h in headers],
-            spacing=5,
-        )
         
-        table_header = ft.Container(content=header_row, bgcolor=COLORS["secondary"], padding=15, border_radius=15)
+        table_header = ft.Container(
+            content=ft.Row([
+                ft.Text(h, color=COLORS["accent"], weight=ft.FontWeight.BOLD, expand=True, size=13)
+                for h in headers
+            ], spacing=2),
+            bgcolor=COLORS["secondary"], padding=15, border_radius=15,
+        )
+        self.content.controls.append(table_header)
+        
         self.expenses_table_content = ft.Column(spacing=5)
-        
-        table_card = ft.Container(
-            content=ft.Column([table_header, self.expenses_table_content], spacing=0),
-            bgcolor=COLORS["card_bg"],
-            border_radius=15,
-            padding=10,
-            margin=5,
-        )
-        self.content.controls.append(table_card)
+        self.content.controls.append(ft.Container(self.expenses_table_content, padding=10))
         
         self.load_expenses()
     
-    def _load_expense_data(self):
-        conn = sqlite3.connect('doosti.db')
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM expenses WHERE id = ?', (self.editing_expense_id,))
-        expense = cursor.fetchone()
-        conn.close()
-        if expense:
-            self.entry_expense_title.value = expense[1] or ''
-            self.entry_expense_amount.value = str(expense[2]) if expense[2] else ''
-    
     def save_expense(self):
+        """ذخیره مصرف - مطابق کد اصلی"""
         title = (self.entry_expense_title.value or "").strip()
         amount = (self.entry_expense_amount.value or "").strip()
         
         if not title or not amount:
-            self._show_error("لطفاً عنوان و مبلغ را وارد کنید!")
+            self._show_dialog("خطا", "لطفاً عنوان و مبلغ را وارد کنید!")
             return
         
         try:
             amount_f = float(amount)
         except ValueError:
-            self._show_error("مبلغ باید یک عدد باشد!")
+            self._show_dialog("خطا", "مبلغ باید یک عدد باشد!")
             return
         
-        conn = sqlite3.connect('doosti.db')
+        conn = get_db()
         cursor = conn.cursor()
         expense_date = now_shamsi()
         
         try:
             if self.editing_expense_id:
-                cursor.execute('UPDATE expenses SET title = ?, amount = ? WHERE id = ?', (title, amount_f, self.editing_expense_id))
+                cursor.execute('''
+                    UPDATE expenses SET title = ?, amount = ?
+                    WHERE id = ?
+                ''', (title, amount_f, self.editing_expense_id))
                 conn.commit()
                 conn.close()
-                self._show_success("مصرف با موفقیت بروزرسانی شد!")
+                self._show_dialog("موفقیت", "مصرف با موفقیت بروزرسانی شد!")
                 self.cancel_expense_edit()
             else:
-                cursor.execute('INSERT INTO expenses (title, amount, date) VALUES (?, ?, ?)', (title, amount_f, expense_date))
+                cursor.execute('''
+                    INSERT INTO expenses (title, amount, date)
+                    VALUES (?, ?, ?)
+                ''', (title, amount_f, expense_date))
                 conn.commit()
                 conn.close()
-                self._show_success("مصرف با موفقیت ذخیره شد!")
+                self._show_dialog("موفقیت", "مصرف با موفقیت ذخیره شد!")
             
             self.entry_expense_title.value = ""
             self.entry_expense_amount.value = ""
             self.load_expenses()
         except Exception as e:
             conn.close()
-            self._show_error(f"خطا: {e}")
+            self._show_dialog("خطا", f"خطا: {e}")
     
     def cancel_expense_edit(self):
+        """لغو ویرایش مصرف - مطابق کد اصلی"""
         self.editing_expense_id = None
         self.entry_expense_title.value = ""
         self.entry_expense_amount.value = ""
         self.show_tab("expenses")
     
     def load_expenses(self):
+        """بارگذاری لیست مصارف - مطابق کد اصلی"""
         self.expenses_table_content.controls.clear()
         self.selected_expense_row = None
         
-        conn = sqlite3.connect('doosti.db')
+        conn = get_db()
         cursor = conn.cursor()
         cursor.execute('SELECT id, title, amount, date FROM expenses ORDER BY id ASC')
         expenses = cursor.fetchall()
@@ -874,112 +896,118 @@ class DoostiTailoringApp:
         
         for idx, expense in enumerate(expenses):
             self.add_expense_row(expense, idx + 1)
+        
         self.page.update()
     
     def add_expense_row(self, expense, row_number):
+        """اضافه کردن ردیف مصرف - مطابق کد اصلی"""
         values = [
             expense[3] or "-",
-            f"{expense[2]:,.0f}" if expense[2] else "0",
+            fmt(expense[2]),
             expense[1] or "-",
-            str(row_number),
+            str(row_number)
         ]
         
         row = ft.Container(
-            content=ft.Row([ft.Text(v, color=COLORS["text"], size=13, expand=True) for v in values], spacing=5),
+            content=ft.Column([
+                ft.Row([
+                    ft.Text(v, color=COLORS["text"], expand=True, size=13)
+                    for v in values
+                ], spacing=2),
+                ft.Row([
+                    ft.ElevatedButton(
+                        "✏️ ویرایش",
+                        on_click=lambda e, eid=expense[0]: self.edit_expense(eid),
+                        bgcolor=COLORS["accent"], color=COLORS["primary"],
+                        height=32, width=110,
+                        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+                    ),
+                    ft.ElevatedButton(
+                        "🗑️ حذف",
+                        on_click=lambda e, eid=expense[0]: self.confirm_delete_expense(eid),
+                        bgcolor=COLORS["danger"], color=COLORS["text"],
+                        height=32, width=110,
+                        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+                    ),
+                ], spacing=10),
+            ], spacing=8),
             bgcolor=COLORS["input_bg"],
-            border_radius=10,
             padding=15,
-            ink=True,
-            on_long_press=lambda e, eid=expense[0]: self._show_expense_context_menu(eid),
-            on_click=lambda e, eid=expense[0]: self._highlight_expense_row(eid, e.control),
+            border_radius=10,
+            on_click=lambda e, eid=expense[0]: self.select_expense_row(eid),
         )
+        
+        if self.selected_expense_row == expense[0]:
+            row.bgcolor = COLORS["selected_row"]
+        
         self.expenses_table_content.controls.append(row)
     
-    def _highlight_expense_row(self, expense_id, widget):
-        for ctrl in self.expenses_table_content.controls:
-            ctrl.bgcolor = COLORS["input_bg"]
-        widget.bgcolor = COLORS["selected_row"]
+    def select_expense_row(self, expense_id):
+        """انتخاب یک ردیف مصرف - مطابق کد اصلی"""
         self.selected_expense_row = expense_id
-        self.page.update()
-    
-    def _show_expense_context_menu(self, expense_id):
-        self.selected_expense_row = expense_id
-        
-        def close_dlg(e):
-            dlg.open = False
-            self.page.update()
-        
-        def edit_click(e):
-            close_dlg(e)
-            self.edit_expense(expense_id)
-        
-        def delete_click(e):
-            close_dlg(e)
-            self.delete_expense(expense_id)
-        
-        dlg = ft.AlertDialog(
-            title=ft.Text(f"عملیات مصرف شماره {expense_id}", size=18, weight=ft.FontWeight.BOLD, color=COLORS["accent"]),
-            content=ft.Column(
-                [
-                    ft.ElevatedButton("✏️  ویرایش مصرف", on_click=edit_click, bgcolor=COLORS["accent"], color=COLORS["primary"], height=50, expand=True),
-                    ft.ElevatedButton("🗑️  حذف مصرف", on_click=delete_click, bgcolor=COLORS["danger"], color=COLORS["text"], height=50, expand=True),
-                    ft.ElevatedButton("❌  انصراف", on_click=close_dlg, bgcolor=COLORS["secondary"], color=COLORS["text"], height=50, expand=True),
-                ],
-                spacing=10,
-                tight=True,
-            ),
-            actions_alignment=ft.MainAxisAlignment.CENTER,
-        )
-        self.page.overlay.append(dlg)
-        dlg.open = True
-        self.page.update()
+        self.load_expenses()
     
     def edit_expense(self, expense_id):
-        self.editing_expense_id = expense_id
+        """ویرایش مصرف - مطابق کد اصلی"""
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM expenses WHERE id = ?', (expense_id,))
+        expense = cursor.fetchone()
+        conn.close()
+        
+        if not expense:
+            self._show_dialog("خطا", "مصرف پیدا نشد!")
+            return
+        
+        self.editing_expense_id = expense[0]
         self.show_tab("expenses")
     
-    def delete_expense(self, expense_id):
-        self._show_confirm("تأیید حذف", "آیا از حذف این مصرف اطمینان دارید؟", lambda: self._do_delete_expense(expense_id))
+    def confirm_delete_expense(self, expense_id):
+        """تأیید حذف مصرف - معادل messagebox.askyesno"""
+        self.selected_expense_row = expense_id
+        self._show_confirm_dialog(
+            "تأیید حذف",
+            "آیا از حذف این مصرف اطمینان دارید؟",
+            lambda: self.delete_expense(expense_id)
+        )
     
-    def _do_delete_expense(self, expense_id):
-        conn = sqlite3.connect('doosti.db')
+    def delete_expense(self, expense_id):
+        """حذف مصرف - مطابق کد اصلی"""
+        conn = get_db()
         cursor = conn.cursor()
         cursor.execute('DELETE FROM expenses WHERE id = ?', (expense_id,))
         conn.commit()
         conn.close()
-        self._show_success("مصرف حذف شد!")
+        
+        self._show_dialog("موفقیت", "مصرف حذف شد!")
+        self.selected_expense_row = None
         self.load_expenses()
     
     # ============================================
-    # تب گزارش مالی
+    # تب ۴: گزارش مالی - مطابق کد اصلی
     # ============================================
     def create_report_tab(self):
+        """ایجاد تب گزارش مالی - مطابق کد اصلی"""
         self.content.controls.append(self.create_section_title("گزارش مالی", "📊"))
         
-        conn = sqlite3.connect('doosti.db')
-        cursor = conn.cursor()
-        cursor.execute('SELECT COALESCE(SUM(price), 0) FROM orders')
-        total_income = cursor.fetchone()[0]
-        cursor.execute('SELECT COALESCE(SUM(amount), 0) FROM expenses')
-        total_expenses = cursor.fetchone()[0]
-        conn.close()
-        net_profit = total_income - total_expenses
+        self.income_value = ft.Text("0 افغانی", size=22, weight=ft.FontWeight.BOLD, 
+                                   color=COLORS["success"], font_family="Vazirmatn-Bold")
+        self.expenses_value = ft.Text("0 افغانی", size=22, weight=ft.FontWeight.BOLD, 
+                                     color=COLORS["danger"], font_family="Vazirmatn-Bold")
+        self.profit_value = ft.Text("0 افغانی", size=22, weight=ft.FontWeight.BOLD, 
+                                   color=COLORS["accent"], font_family="Vazirmatn-Bold")
         
-        self.income_card = self.create_stat_card("مجموع درآمد  💵", f"{total_income:,.0f} افغانی", COLORS["success"])
-        self.expenses_card = self.create_stat_card("مجموع مصارف  💸", f"{total_expenses:,.0f} افغانی", COLORS["danger"])
-        self.profit_card = self.create_stat_card("سود خالص  📈", f"{net_profit:,.0f} افغانی", COLORS["accent"])
+        income_card = self.create_stat_card("مجموع درآمد  💵", self.income_value, COLORS["success"])
+        expenses_card = self.create_stat_card("مجموع مصارف  💸", self.expenses_value, COLORS["danger"])
+        profit_card = self.create_stat_card("سود خالص  📈", self.profit_value, COLORS["accent"])
         
-        stats_row = ft.ResponsiveRow(
-            [
-                ft.Container(self.income_card, col={"sm": 12, "md": 4, "lg": 4}),
-                ft.Container(self.expenses_card, col={"sm": 12, "md": 4, "lg": 4}),
-                ft.Container(self.profit_card, col={"sm": 12, "md": 4, "lg": 4}),
-            ],
-            spacing=10,
-            run_spacing=10,
-        )
+        stats_frame = ft.ResponsiveRow([
+            ft.Container(income_card, col={"sm": 12, "md": 4, "lg": 4}),
+            ft.Container(expenses_card, col={"sm": 12, "md": 4, "lg": 4}),
+            ft.Container(profit_card, col={"sm": 12, "md": 4, "lg": 4}),
+        ], spacing=10, run_spacing=10)
         
-        self.content.controls.append(ft.Container(stats_row, padding=10))
+        self.content.controls.append(stats_frame)
         
         self.btn_calculate = ft.ElevatedButton(
             "محاسبه گزارش  🔄",
@@ -987,76 +1015,108 @@ class DoostiTailoringApp:
             bgcolor=COLORS["accent"],
             color=COLORS["primary"],
             height=50,
-        )
-        self.content.controls.append(ft.Container(self.btn_calculate, padding=10))
-    
-    def create_stat_card(self, title, value, color):
-        return ft.Container(
-            content=ft.Column(
-                [
-                    ft.Container(height=5, bgcolor=color, border_radius=15),
-                    ft.Container(
-                        content=ft.Column(
-                            [
-                                ft.Text(title, size=14, color=COLORS["text_muted"], text_align=ft.TextAlign.RIGHT),
-                                ft.Text(value, size=24, weight=ft.FontWeight.BOLD, color=color, text_align=ft.TextAlign.RIGHT),
-                            ],
-                            spacing=10,
-                        ),
-                        padding=20,
-                    ),
-                ],
-                spacing=0,
+            style=ft.ButtonStyle(
+                shape=ft.RoundedRectangleBorder(radius=12),
+                text_style=ft.TextStyle(weight=ft.FontWeight.BOLD, size=16)
             ),
-            bgcolor=COLORS["card_bg"],
-            border_radius=15,
+        )
+        
+        self.content.controls.append(ft.Container(self.btn_calculate, padding=20))
+        
+        # محاسبه اولیه
+        self.calculate_report()
+    
+    def create_stat_card(self, title, value_widget, color):
+        """ایجاد کارت آماری - مطابق کد اصلی"""
+        return ft.Container(
+            content=ft.Column([
+                ft.Container(height=5, bgcolor=color, border_radius=15),
+                ft.Container(
+                    ft.Column([
+                        ft.Text(title, size=13, color=COLORS["text_muted"],
+                               font_family="Vazirmatn"),
+                        value_widget,
+                    ], spacing=10, horizontal_alignment=ft.CrossAxisAlignment.END),
+                    padding=20,
+                ),
+            ], spacing=0),
+            bgcolor=COLORS["card_bg"], border_radius=15,
         )
     
     def calculate_report(self):
+        """محاسبه گزارش مالی - مطابق کد اصلی"""
         try:
-            conn = sqlite3.connect('doosti.db')
+            conn = get_db()
             cursor = conn.cursor()
+            
             cursor.execute('SELECT COALESCE(SUM(price), 0) FROM orders')
             total_income = cursor.fetchone()[0]
+            
             cursor.execute('SELECT COALESCE(SUM(amount), 0) FROM expenses')
             total_expenses = cursor.fetchone()[0]
+            
             conn.close()
+            
             net_profit = total_income - total_expenses
             
-            self.income_card = self.create_stat_card("مجموع درآمد  💵", f"{total_income:,.0f} افغانی", COLORS["success"])
-            self.expenses_card = self.create_stat_card("مجموع مصارف  💸", f"{total_expenses:,.0f} افغانی", COLORS["danger"])
-            self.profit_card = self.create_stat_card("سود خالص  📈", f"{net_profit:,.0f} افغانی", COLORS["accent"])
+            self.income_value.value = f"{total_income:,.0f} افغانی"
+            self.expenses_value.value = f"{total_expenses:,.0f} افغانی"
+            self.profit_value.value = f"{net_profit:,.0f} افغانی"
             
-            self.show_tab("report")
+            if net_profit >= 0:
+                self.profit_value.color = COLORS["success"]
+            else:
+                self.profit_value.color = COLORS["danger"]
+            
+            self.page.update()
+            
         except Exception as e:
             print(f"خطا در محاسبه گزارش: {e}")
+            self.income_value.value = "0 افغانی"
+            self.expenses_value.value = "0 افغانی"
+            self.profit_value.value = "0 افغانی"
+            self.page.update()
     
     # ============================================
-    # پیام‌ها
+    # Dialog ها - معادل messagebox
     # ============================================
-    def _show_error(self, message):
-        self.page.overlay.append(ft.SnackBar(content=ft.Text(message, color=COLORS["text"]), bgcolor=COLORS["danger"], action="OK"))
-        self.page.update()
-    
-    def _show_success(self, message):
-        self.page.overlay.append(ft.SnackBar(content=ft.Text(message, color=COLORS["text"]), bgcolor=COLORS["success"], action="OK"))
-        self.page.update()
-    
-    def _show_confirm(self, title, message, on_yes):
-        def close_dialog(e):
+    def _show_dialog(self, title, message):
+        """نمایش پیام - معادل messagebox"""
+        def close_dlg(e):
             dlg.open = False
             self.page.update()
         
-        def yes_click(e):
-            close_dialog(e)
-            on_yes()
+        dlg = ft.AlertDialog(
+            title=ft.Text(title, font_family="Vazirmatn-Bold", weight=ft.FontWeight.BOLD),
+            content=ft.Text(message, font_family="Vazirmatn"),
+            actions=[
+                ft.TextButton("باشه", on_click=close_dlg),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        self.page.overlay.append(dlg)
+        dlg.open = True
+        self.page.update()
+    
+    def _show_confirm_dialog(self, title, message, on_confirm):
+        """نمایش تأیید - معادل messagebox.askyesno"""
+        dlg = None
+        
+        def on_yes(e):
+            dlg.open = False
+            self.page.update()
+            on_confirm()
+        
+        def on_no(e):
+            dlg.open = False
+            self.page.update()
         
         dlg = ft.AlertDialog(
-            title=ft.Text(title, color=COLORS["accent"], weight=ft.FontWeight.BOLD),
-            content=ft.Text(message, color=COLORS["text"]),
+            title=ft.Text(title, font_family="Vazirmatn-Bold", weight=ft.FontWeight.BOLD),
+            content=ft.Text(message, font_family="Vazirmatn"),
             actions=[
-                ft.TextButton("انصراف", on_click=close_dialog),
-                ft.TextButton("بله، حذف کن", on_click=yes_click),
+                ft.TextButton("بله", on_click=on_yes),
+                ft.TextButton("خیر", on_click=on_no),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
         )
@@ -1064,10 +1124,8 @@ class DoostiTailoringApp:
         dlg.open = True
         self.page.update()
 
-# ============================================
-# اجرای برنامه
-# ============================================
+
 def main(page: ft.Page):
     DoostiTailoringApp(page)
 
-ft.run(main)  # ✅ اصلاح شد: ft.run به جای ft.app
+ft.app(target=main)
