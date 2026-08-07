@@ -156,6 +156,9 @@ class DoostiTailoringApp:
         self.nav_bar = ft.Container(content=ft.Row(buttons, spacing=6), padding=8)
     
     def show_tab(self, tab_id):
+        # ✅ پاک کردن dialog های باز قبل از تغییر تب
+        self.page.overlay.clear()
+        
         self.content.controls.clear()
         for tid, btn in self.nav_buttons.items():
             if tid == tab_id:
@@ -171,7 +174,6 @@ class DoostiTailoringApp:
         elif tab_id == "report": self.create_report_tab()
         self.page.update()
     
-    # ✅ عنوان بخش با wrap برای موبایل
     def create_section_title(self, text, icon=""):
         display = f"{text}  {icon}" if icon else text
         return ft.Container(
@@ -308,31 +310,30 @@ class DoostiTailoringApp:
                      measurements['pants_length'], measurements['leg'], now_shamsi()))
             conn.commit()
             conn.close()
+            
+            # ✅ پاک کردن فرم و رفتن به تب سفارش جدید
+            self.editing_order_id = None
+            for entry in [self.entry_clothing_code, self.entry_name, self.entry_surname, self.entry_phone,
+                         self.entry_clothing_type, self.entry_price] + list(self.measure_entries.values()):
+                entry.value = ""
+            
             self._show_dialog("موفقیت", "سفارش با موفقیت ذخیره/بروزرسانی شد!")
-            self.cancel_edit()
         except Exception as e:
             conn.close()
             self._show_dialog("خطا", f"خطا در ذخیره: {e}")
     
-    def clear_order_form(self):
+    def cancel_edit(self):
+        self.editing_order_id = None
         for entry in [self.entry_clothing_code, self.entry_name, self.entry_surname, self.entry_phone,
                      self.entry_clothing_type, self.entry_price] + list(self.measure_entries.values()):
             entry.value = ""
-        self.page.update()
-    
-    def cancel_edit(self):
-        self.editing_order_id = None
-        self.clear_order_form()
         self.show_tab("new_order")
     
-    # ✅ تب مشتریان - فیلد جستجو بالا، دکمه‌ها زیر آن، RTL کامل
     def create_customers_tab(self):
         self.content.controls.append(self.create_section_title("لیست مشتریان", "👥"))
         
-        # ✅ فیلد جستجو در بالا (تمام عرض)
         self.entry_search = make_field("جستجو با اسم، تخلص، موبایل یا کود لباس...  🔍", "جستجو...")
         
-        # ✅ دکمه‌های جستجو و بروزرسانی زیر فیلد جستجو
         self.btn_search = ft.ElevatedButton("🔍 جستجو", on_click=lambda e: self.search_customers(),
             bgcolor=COLORS["accent"], color=COLORS["primary"], height=45, expand=True,
             style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10),
@@ -342,7 +343,6 @@ class DoostiTailoringApp:
             style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10),
                                 text_style=ft.TextStyle(weight="bold", size=14)))
         
-        # ✅ چیدمان: فیلد بالا، دکمه‌ها زیر آن
         search_card = ft.Container(
             content=ft.Column([
                 self.entry_search,
@@ -351,7 +351,6 @@ class DoostiTailoringApp:
             bgcolor=COLORS["card_bg"], border_radius=15, padding=15, margin=5)
         self.content.controls.append(search_card)
         
-        # ✅ لیست مشتریان به صورت کارت‌های عمودی (RTL)
         self.table_content = ft.Column(spacing=8)
         self.content.controls.append(ft.Container(self.table_content, padding=5))
         self.load_customers()
@@ -368,14 +367,12 @@ class DoostiTailoringApp:
             self.add_customer_row(order, idx + 1)
         self.page.update()
     
-    # ✅ کارت مشتری RTL - اطلاعات عمودی و خوانا در موبایل
     def add_customer_row(self, order, row_number):
         order_id, name, surname, phone, code, ctype, price, date, status = order
         
-        # ✅ کارت با اطلاعات عمودی - RTL
+        # ✅ کارت RTL - بدون ft.border.all
         card = ft.Container(
             content=ft.Column([
-                # ردیف اول: شماره و نام
                 ft.Row([
                     ft.Text(f"#{row_number}", size=14, weight="bold", color=COLORS["accent"]),
                     ft.Text(f"{name} {surname}", size=15, weight="bold", color=COLORS["text"],
@@ -384,7 +381,6 @@ class DoostiTailoringApp:
                 
                 ft.Divider(height=1, color=COLORS["secondary"]),
                 
-                # اطلاعات با label:value
                 ft.Row([
                     ft.Text("📱 تلفون:", size=12, weight="bold", color=COLORS["text_muted"], width=80),
                     ft.Text(phone or "-", size=13, color=COLORS["text"], expand=True, text_align="right"),
@@ -413,7 +409,6 @@ class DoostiTailoringApp:
                 
                 ft.Divider(height=1, color=COLORS["secondary"]),
                 
-                # دکمه‌های عملیات
                 ft.Row([
                     ft.ElevatedButton("✏️ ویرایش", on_click=lambda e, oid=order_id: self.edit_order(oid),
                         bgcolor=COLORS["accent"], color=COLORS["primary"], height=38, expand=True,
@@ -427,7 +422,6 @@ class DoostiTailoringApp:
             ], spacing=8),
             bgcolor=COLORS["input_bg"] if self.selected_order_row != order_id else COLORS["selected_row"],
             padding=15, border_radius=12,
-            border=ft.border.all(2, COLORS["accent"] if self.selected_order_row == order_id else COLORS["secondary"]),
             on_click=lambda e, oid=order_id: self.select_order_row(oid))
         
         self.table_content.controls.append(card)
@@ -471,7 +465,6 @@ class DoostiTailoringApp:
             self.add_customer_row(order, idx + 1)
         self.page.update()
     
-    # ✅ تب مصارف - RTL کامل
     def create_expenses_tab(self):
         self.content.controls.append(self.create_section_title("مصارف دوکان", "💰"))
         
@@ -512,7 +505,6 @@ class DoostiTailoringApp:
             ], spacing=0),
             bgcolor=COLORS["card_bg"], border_radius=15, margin=5))
         
-        # ✅ لیست مصارف به صورت کارت‌های عمودی (RTL)
         self.expenses_table_content = ft.Column(spacing=8)
         self.content.controls.append(ft.Container(self.expenses_table_content, padding=5))
         self.load_expenses()
@@ -540,9 +532,12 @@ class DoostiTailoringApp:
                     (title, amount_f, now_shamsi()))
             conn.commit()
             conn.close()
-            self._show_dialog("موفقیت", "مصرف با موفقیت ذخیره/بروزرسانی شد!")
+            
+            # ✅ پاک کردن فرم
+            self.editing_expense_id = None
             self.entry_expense_title.value, self.entry_expense_amount.value = "", ""
-            self.cancel_expense_edit()
+            
+            self._show_dialog("موفقیت", "مصرف با موفقیت ذخیره/بروزرسانی شد!")
         except Exception as e:
             conn.close()
             self._show_dialog("خطا", f"خطا: {e}")
@@ -564,13 +559,12 @@ class DoostiTailoringApp:
             self.add_expense_row(expense, idx + 1)
         self.page.update()
     
-    # ✅ کارت مصرف RTL - اطلاعات عمودی و خوانا
     def add_expense_row(self, expense, row_number):
         exp_id, title, amount, date = expense
         
+        # ✅ کارت RTL - بدون ft.border.all
         card = ft.Container(
             content=ft.Column([
-                # ردیف اول: شماره و عنوان
                 ft.Row([
                     ft.Text(f"#{row_number}", size=14, weight="bold", color=COLORS["danger"]),
                     ft.Text(title or "-", size=15, weight="bold", color=COLORS["text"],
@@ -579,14 +573,12 @@ class DoostiTailoringApp:
                 
                 ft.Divider(height=1, color=COLORS["secondary"]),
                 
-                # مبلغ
                 ft.Row([
                     ft.Text("💰 مبلغ:", size=12, weight="bold", color=COLORS["text_muted"], width=70),
                     ft.Text(f"{fmt(amount)} افغانی", size=15, weight="bold", color=COLORS["danger"],
                            expand=True, text_align="right"),
                 ]),
                 
-                # تاریخ
                 ft.Row([
                     ft.Text("📅 تاریخ:", size=12, weight="bold", color=COLORS["text_muted"], width=70),
                     ft.Text(date or "-", size=13, color=COLORS["text"], expand=True, text_align="right"),
@@ -594,7 +586,6 @@ class DoostiTailoringApp:
                 
                 ft.Divider(height=1, color=COLORS["secondary"]),
                 
-                # دکمه‌ها
                 ft.Row([
                     ft.ElevatedButton("✏️ ویرایش", on_click=lambda e, eid=exp_id: self.edit_expense(eid),
                         bgcolor=COLORS["accent"], color=COLORS["primary"], height=38, expand=True,
@@ -608,7 +599,6 @@ class DoostiTailoringApp:
             ], spacing=8),
             bgcolor=COLORS["input_bg"] if self.selected_expense_row != exp_id else COLORS["selected_row"],
             padding=15, border_radius=12,
-            border=ft.border.all(2, COLORS["danger"] if self.selected_expense_row == exp_id else COLORS["secondary"]),
             on_click=lambda e, eid=exp_id: self.select_expense_row(eid))
         
         self.expenses_table_content.controls.append(card)
@@ -694,36 +684,42 @@ class DoostiTailoringApp:
             self.income_value.value, self.expenses_value.value, self.profit_value.value = "0 افغانی", "0 افغانی", "0 افغانی"
             self.page.update()
     
+    # ✅ اصلاح dialog - حذف از overlay بعد از بستن
     def _show_dialog(self, title, message):
-        def close_dlg(e):
-            dlg.open = False
-            self.page.update()
         dlg = ft.AlertDialog(
             title=ft.Text(title, font_family="Vazirmatn-Bold", weight="bold"),
             content=ft.Text(message, font_family="Vazirmatn"),
-            actions=[ft.TextButton("باشه", on_click=close_dlg)],
+            actions=[ft.TextButton("باشه", on_click=lambda e: self._close_dialog(dlg))],
             actions_alignment="end")
         self.page.overlay.append(dlg)
         dlg.open = True
         self.page.update()
     
+    def _close_dialog(self, dlg):
+        dlg.open = False
+        if dlg in self.page.overlay:
+            self.page.overlay.remove(dlg)
+        self.page.update()
+    
     def _show_confirm_dialog(self, title, message, on_confirm):
-        dlg = None
-        def on_yes(e):
-            dlg.open = False
-            self.page.update()
-            on_confirm()
-        def on_no(e):
-            dlg.open = False
-            self.page.update()
         dlg = ft.AlertDialog(
             title=ft.Text(title, font_family="Vazirmatn-Bold", weight="bold"),
             content=ft.Text(message, font_family="Vazirmatn"),
-            actions=[ft.TextButton("بله", on_click=on_yes), ft.TextButton("خیر", on_click=on_no)],
+            actions=[
+                ft.TextButton("بله", on_click=lambda e: self._confirm_action(dlg, on_confirm)),
+                ft.TextButton("خیر", on_click=lambda e: self._close_dialog(dlg))
+            ],
             actions_alignment="end")
         self.page.overlay.append(dlg)
         dlg.open = True
         self.page.update()
+    
+    def _confirm_action(self, dlg, on_confirm):
+        dlg.open = False
+        if dlg in self.page.overlay:
+            self.page.overlay.remove(dlg)
+        self.page.update()
+        on_confirm()
 
 def main(page: ft.Page):
     DoostiTailoringApp(page)
