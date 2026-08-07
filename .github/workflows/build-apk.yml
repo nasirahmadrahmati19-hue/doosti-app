@@ -18,26 +18,20 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Set up Java (Updated to v5)
+      - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.5'
-          channel: 'stable'
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install flet jdatetime
 
-      - name: Build APK
+      - name: Build APK (Auto-accept Flutter installation)
         run: |
-          flet build apk
+          yes | flet build apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
